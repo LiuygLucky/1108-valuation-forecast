@@ -1,0 +1,11 @@
+.venv/
+.env
+__pycache__/
+.pytest_cache/
+.pytest_tmp/
+.ruff_cache/
+*.egg-info/
+data/
+reports/
+!reports/.gitkeep
+prompt.md

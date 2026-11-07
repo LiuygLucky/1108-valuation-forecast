@@ -1,0 +1,15 @@
+question: "OpenAI 在 2026 年 12 月 31 日的 NPM 私募市场估值属于哪个区间？"
+target_date: "2026-12-31"
+valuation_metric: "Nasdaq Private Market OpenAI Valuation"
+unit: "USD trillion"
+source_url: "https://fe.secondmarket.com/companies/company-30839e0b-2730-4495-839f-1bf638fa9cca/data"
+timezone: "America/New_York"
+update_hour: 13
+forecast_type: "terminal_interval"
+intervals:
+  - {label: "(0, 0.85)", lower: 0, upper: 0.85, lower_closed: false, upper_closed: false}
+  - {label: "[0.85, 1.00)", lower: 0.85, upper: 1.00, lower_closed: true, upper_closed: false}
+  - {label: "[1.00, 1.15)", lower: 1.00, upper: 1.15, lower_closed: true, upper_closed: false}
+  - {label: "[1.15, 1.30)", lower: 1.15, upper: 1.30, lower_closed: true, upper_closed: false}
+  - {label: "[1.30, 1.45]", lower: 1.30, upper: 1.45, lower_closed: true, upper_closed: true}
+  - {label: "(1.45, +∞)", lower: 1.45, upper: null, lower_closed: false, upper_closed: false}

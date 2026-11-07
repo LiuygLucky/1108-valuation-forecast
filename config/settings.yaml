@@ -1,0 +1,31 @@
+model_version: "v1.0.0-heuristic"
+max_iterations: 2
+queries_per_round: 3
+max_search_calls: 8
+max_llm_calls: 12
+max_tokens: 180000
+max_output_tokens: 4500
+llm_timeout_seconds: 120
+qwen_enable_thinking: false
+qwen_thinking_budget: 1024
+max_cost_usd: 2.0
+search_cost_usd: 0.01
+search_retries: 2
+results_per_query: 4
+max_evidence: 40
+stale_days: 120
+seed: 20261231
+samples: 50000
+annual_log_drift: 0.0
+annual_volatility: 0.45
+anchor_log_uncertainty: 0.08
+max_anchor_age_days: 180
+max_event_log_shift: 0.06
+max_total_log_shift: 0.18
+scenario_down_log_shift: -0.18
+scenario_up_log_shift: 0.18
+scenario_weights: [0.25, 0.50, 0.25]
+embedding_backend: "hashing"
+embedding_model: "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+embedding_dimensions: 1024
+preferred_domains: ["openai.com", "nasdaqprivatemarket.com", "reuters.com", "bloomberg.com", "ft.com"]

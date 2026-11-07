@@ -1,0 +1,10 @@
+{
+  "valuation_trillion": null,
+  "metric": "Nasdaq Private Market OpenAI Valuation",
+  "source_url": "https://fe.secondmarket.com/companies/company-30839e0b-2730-4495-839f-1bf638fa9cca/data",
+  "effective_date": "REPLACE_WITH_YYYY-MM-DD",
+  "observed_at": "REPLACE_WITH_ACTUAL_ISO_TIMESTAMP_WITH_TIMEZONE",
+  "verified": false,
+  "synthetic": false,
+  "notes": "Replace placeholders only after manually verifying the NPM Valuation and capturing an archive. This template is not market data."
+}
