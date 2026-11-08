@@ -27,10 +27,18 @@ def make_forecast(state, rules, settings):
         baseline_probabilities=belief["baseline_distribution"],
         median_valuation=belief["median"],
         confidence_interval_90=belief["interval90"],
-        key_evidence_ids=state.critique.accepted_evidence if state.critique else [],
+        key_evidence_ids=[
+            e.evidence_id
+            for e in state.evidence
+            if state.critique
+            and e.evidence_id in state.critique.accepted_evidence
+            and e.support_level == "direct"
+        ],
         main_assumptions=[
             "NPM is the only valuation metric; financing headlines are not settlement values.",
             "Lognormal baseline; subjective downside/central/upside scenario mixture.",
+            f"Configured annual log drift {settings.annual_log_drift:.4f} and annual volatility "
+            f"{settings.annual_volatility:.4f}; estimation inputs are not archived in this run.",
             "Only new, completed, accepted, unpriced/partially priced events can shift the distribution.",
         ],
         limitations=belief["uncertainty_notes"] + state.warnings,
@@ -104,6 +112,7 @@ def markdown_report(state: CognitiveState) -> str:
         f"# Cognitive Forecasting Agent V1 — {mode}",
         "",
         f"运行：`{state.run_id}`",
+        f"研究来源运行：`{state.parent_run_id}`（复用已完成审查）" if state.parent_run_id else "",
         "",
         "## 预测问题与结算口径",
         "",
@@ -120,10 +129,18 @@ def markdown_report(state: CognitiveState) -> str:
     ]
     accepted = set(state.critique.accepted_evidence) if state.critique else set()
     for e in state.evidence:
-        if e.evidence_id in accepted and not e.exclusion_reasons:
+        if e.evidence_id in accepted and not e.exclusion_reasons and e.support_level == "direct":
             lines.append(
-                f"- **{e.epistemic_status}** `{e.evidence_id}`：{e.claim}；状态 `{e.event_status}`；{cite(e)}。"
+                f"- **{e.epistemic_status}** `{e.evidence_id}`：{e.claim}；状态 `{e.event_status}`；"
+                f"来源类型 `{e.source_type}`；来源等级 `{e.source_reliability}`；"
+                f"启发式质量分 {e.quality_score}/100；{cite(e)}。"
             )
+    if not any(e.evidence_id in accepted and e.support_level == "direct" for e in state.evidence):
+        lines.append("- 本轮没有经审查判定为直接支持的事件事实；事件数值调整为零。")
+    lines += ["", "## 部分支持的研究线索", ""]
+    for e in state.evidence:
+        if e.evidence_id in accepted and e.support_level == "partial":
+            lines.append(f"- `{e.evidence_id}`：{e.claim}；引文仅部分支持该主张；{cite(e)}。")
     lines += ["", "## 正面因素、负面因素与因果假设", "", "以下仅为 Model Inference；没有进行严格因果识别。"]
     for h in state.hypotheses:
         lines += [
@@ -143,6 +160,16 @@ def markdown_report(state: CognitiveState) -> str:
             "争议：" + ", ".join(state.critique.disputed_evidence),
             "潜在偏差：" + "；".join(state.critique.potential_biases),
         ]
+    lines += [
+        "质量分是人工指定的研究筛选规则，不是事实为真的概率，也不直接进入估值事件幅度。",
+        "不同域名且引文不同的交叉来源仅为独立性候选，仍可能共享同一原始消息。",
+    ]
+    for e in state.evidence:
+        lines.append(
+            f"- `{e.evidence_id}`：支持程度 `{e.support_level}`；第一手 `{e.first_hand}`；"
+            f"检索轨迹 `{e.retrieval_verified}`；交叉来源候选 `{', '.join(e.corroboration_candidate_ids)}`；"
+            f"质量分 {e.quality_score}/100。"
+        )
     lines += ["- " + x for x in state.information_gaps]
     lines += ["", "## 排除的证据 / 调整", ""]
     for e in state.evidence:

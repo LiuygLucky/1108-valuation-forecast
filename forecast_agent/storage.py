@@ -123,10 +123,15 @@ class Store:
             ]
 
     def last_completed_review(self, run_id: str) -> CognitiveState | None:
+        return self.last_completed_node(run_id, "Critique")
+
+    def last_completed_node(self, run_id: str, node: str) -> CognitiveState | None:
+        if node not in {"Reason", "Critique"}:
+            raise ValueError("Unsupported checkpoint node")
         with self.connect() as db:
             row = db.execute(
-                "SELECT data FROM checkpoints WHERE run_id=? AND node='Critique' ORDER BY seq DESC LIMIT 1",
-                (run_id,),
+                "SELECT data FROM checkpoints WHERE run_id=? AND node=? ORDER BY seq DESC LIMIT 1",
+                (run_id, node),
             ).fetchone()
         return CognitiveState.model_validate_json(row[0]) if row else None
 

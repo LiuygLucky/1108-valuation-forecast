@@ -62,6 +62,17 @@ def test_token_budget_before_network():
     assert budget.usage.llm_calls == 0
 
 
+def test_larger_token_reservation_remains_bounded():
+    settings = load_settings()
+    assert settings.max_tokens == 400000
+    budget = Budget(settings, Secrets(_env_file=None), Usage())
+    budget.llm(130000)
+    budget.llm(130000)
+    with pytest.raises(BudgetExceeded, match="token reservation"):
+        budget.llm(130000)
+    assert budget.usage.llm_calls == 2
+
+
 @pytest.mark.parametrize("model", ["qwen3.8-max", "deepseek-chat"])
 def test_qwen_thinking_is_explicit_without_breaking_deepseek(model):
     import json

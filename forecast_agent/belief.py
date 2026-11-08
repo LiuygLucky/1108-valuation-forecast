@@ -84,6 +84,8 @@ def update_belief(state: CognitiveState, rules: MarketRules, settings: Settings)
             and not e.exclusion_reasons
             and not e.stale
             and e.supported
+            and e.retrieval_verified
+            and e.support_level == "direct"
             and e.event_status == "completed"
             and e.published_at
             and e.published_at > anchor_close
@@ -152,7 +154,9 @@ def update_belief(state: CognitiveState, rules: MarketRules, settings: Settings)
         "interval90": np.quantile(posterior, [0.05, 0.95]).tolist(),
         "histogram": {"counts": histogram.tolist(), "edges": edges.tolist()},
         "uncertainty_notes": [
-            "Volatility, drift, scenario weights and event magnitudes are subjective, uncalibrated assumptions.",
+            "Annual drift and volatility are configured estimates; their input series and estimation method "
+            "are not archived in this run. Scenario weights and event magnitudes remain subjective.",
+            "The full probability model has not been validated for out-of-sample calibration.",
             "Causal mechanisms are hypotheses, not identified causal effects.",
             "Source credibility is used for admission, never as an event probability.",
         ],

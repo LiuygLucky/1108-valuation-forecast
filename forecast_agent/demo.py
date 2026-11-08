@@ -6,6 +6,7 @@ from forecast_agent.schemas import (
     Critique,
     Evidence,
     EvidenceBatch,
+    EvidenceReview,
     Hypothesis,
     NPMObservation,
     Reasoning,
@@ -159,6 +160,15 @@ class DemoLLM:
                 missing_information=["Audited profitability; proposal completion"],
                 potential_biases=["Synthetic evidence cannot validate real forecast quality"],
                 recommended_followup_queries=["DEMO SYNTHETIC audited profitability counterevidence"],
+                evidence_reviews=[
+                    EvidenceReview(
+                        evidence_id=e["evidence_id"],
+                        support_level="direct",
+                        first_hand=False,
+                        rationale="SYNTHETIC fixture sentence directly states the claim",
+                    )
+                    for e in payload["evidence"]
+                ],
             )
         else:
             raise ValueError("Unsupported synthetic schema")

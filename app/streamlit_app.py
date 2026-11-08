@@ -90,6 +90,7 @@ with task_tab:
 with research_tab:
     if state:
         st.write(f"Run ID：`{state.run_id}` · 研究轮数：{state.iteration_count}")
+        st.caption("质量分是人工规则，不是事实概率。旧运行的 unreviewed / 未评估表示未执行新版审查。")
         st.subheader("研究计划与搜索")
         st.dataframe(
             pd.DataFrame([p.model_dump() for p in state.research_plan]), hide_index=True, width="stretch"
@@ -102,6 +103,13 @@ with research_tab:
                 "类别": e.category,
                 "事实层级": e.epistemic_status,
                 "事件状态": e.event_status,
+                "来源类型": e.source_type,
+                "来源等级": e.source_reliability,
+                "支持程度": e.support_level,
+                "第一手": e.first_hand,
+                "轨迹可核": e.retrieval_verified if e.support_level != "unreviewed" else "未评估",
+                "交叉来源候选": ", ".join(e.corroboration_candidate_ids),
+                "启发式质量分": e.quality_score if e.support_level != "unreviewed" else "未评估",
                 "主张": e.claim,
                 "发布时间": str(e.published_at),
                 "排除原因": "; ".join(e.exclusion_reasons),

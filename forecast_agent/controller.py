@@ -23,7 +23,7 @@ from forecast_agent.memory import VectorMemory
 from forecast_agent.observations import select_anchor
 from forecast_agent.report import export_report, make_forecast, markdown_report
 from forecast_agent.research import critique, extract_evidence, plan_research, reason
-from forecast_agent.schemas import CognitiveState, MarketRules, utcnow
+from forecast_agent.schemas import CognitiveState, MarketRules, uid, utcnow
 from forecast_agent.storage import Store
 
 logger = logging.getLogger(__name__)
@@ -134,6 +134,31 @@ class Controller:
         self.search = self.search_override or self.search
         self.llm = self.llm_override or self.llm
         return self.graph().invoke({"state": state}, {"recursion_limit": 80})["state"]
+
+    def fork_completed_review(self, parent_run_id: str) -> CognitiveState:
+        reviewed = self.store.last_completed_review(parent_run_id)
+        if reviewed is None or reviewed.critique is None or not reviewed.critique.accepted_evidence:
+            raise ValueError("No completed accepted evidence review to fork")
+        return self._fork_checkpoint(reviewed, parent_run_id, "UpdateBelief")
+
+    def fork_completed_reason(self, parent_run_id: str) -> CognitiveState:
+        reasoned = self.store.last_completed_node(parent_run_id, "Reason")
+        if reasoned is None or not reasoned.hypotheses:
+            raise ValueError("No completed causal reasoning checkpoint to fork")
+        return self._fork_checkpoint(reasoned, parent_run_id, "Critique")
+
+    def _fork_checkpoint(self, parent: CognitiveState, parent_run_id: str, next_node: str) -> CognitiveState:
+        fork = parent.model_copy(deep=True)
+        fork.run_id = uid("run")
+        fork.parent_run_id = parent_run_id
+        fork.status, fork.next_node = "running", next_node
+        fork.forecast, fork.report = None, ""
+        fork.warnings.append(
+            f"Reused completed {fork.mode} research and prior costs from {parent_run_id}; "
+            f"restarted at {next_node} without new search"
+        )
+        self.store.checkpoint(fork, f"ForkTo{next_node}")
+        return fork
 
     def graph(self):
         graph = StateGraph(GraphState)
@@ -248,6 +273,7 @@ class Controller:
             self.store.checkpoint(state, "Search:round")
         if state.mode == "historical":
             state.sources = [s for s in self.store.sources(False) if not source_exclusions(s, state)]
+            state.archived_source_ids = [s.source_id for s in state.sources]
             state.search_history.append({"mode": "archived only", "iteration": state.iteration_count})
             state.search_round_active = False
             state.current_round_queries = []
@@ -264,6 +290,7 @@ class Controller:
                         "query": query,
                         "status": "success",
                         "results": len(sources),
+                        "source_ids": [source.source_id for source in sources],
                         "iteration": state.iteration_count,
                         "at": utcnow().isoformat(),
                     }
@@ -298,7 +325,11 @@ class Controller:
 
     def RetrieveMemory(self, state: CognitiveState) -> None:
         source_map = {s.source_id: s for s in state.sources}
-        for source in self.store.sources(state.mode == "demo"):
+        archived = self.store.sources(state.mode == "demo")
+        state.archived_source_ids = list(
+            dict.fromkeys(state.archived_source_ids + [s.source_id for s in archived])
+        )
+        for source in archived:
             if not source_exclusions(source, state):
                 source_map.setdefault(source.source_id, source)
         state.sources = list(source_map.values())
@@ -363,6 +394,14 @@ class Controller:
     def UpdateBelief(self, state: CognitiveState) -> None:
         if not state.critique or not state.critique.accepted_evidence:
             raise ValueError("Independent critic accepted no evidence; forecast refused")
+        if not any(
+            e.evidence_id in state.critique.accepted_evidence and e.support_level == "direct"
+            for e in state.evidence
+        ):
+            state.warnings.append(
+                "No directly supported accepted event evidence; numerical forecast uses the NPM baseline "
+                "and subjective scenarios without event adjustments"
+            )
         state.belief_state = update_belief(state, self.rules, self.settings)
 
     def GenerateForecast(self, state: CognitiveState) -> None:

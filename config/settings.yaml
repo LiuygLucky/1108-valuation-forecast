@@ -3,7 +3,7 @@ max_iterations: 2
 queries_per_round: 3
 max_search_calls: 8
 max_llm_calls: 12
-max_tokens: 180000
+max_tokens: 400000
 max_output_tokens: 4500
 llm_timeout_seconds: 120
 qwen_enable_thinking: false
@@ -16,8 +16,8 @@ max_evidence: 40
 stale_days: 120
 seed: 20261231
 samples: 50000
-annual_log_drift: 0.0
-annual_volatility: 0.45
+annual_log_drift: 0.52
+annual_volatility: 0.22
 anchor_log_uncertainty: 0.08
 max_anchor_age_days: 180
 max_event_log_shift: 0.06

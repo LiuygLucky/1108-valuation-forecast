@@ -15,7 +15,7 @@ class Settings(Model):
     queries_per_round: int = Field(ge=1, le=8)
     max_search_calls: int = Field(ge=1, le=30)
     max_llm_calls: int = Field(ge=1, le=30)
-    max_tokens: int = Field(ge=1000)
+    max_tokens: int = Field(ge=1000, le=500000)
     max_output_tokens: int = Field(ge=100, le=16000)
     llm_timeout_seconds: int = Field(default=120, ge=10, le=600)
     qwen_enable_thinking: bool = False

@@ -55,7 +55,7 @@ def source_exclusions(source: Source, state: CognitiveState) -> list[str]:
 
 
 def source_quality(source: Source) -> tuple[str, float]:
-    host = source.source.removeprefix("www.").lower()
+    host = (urlsplit(source.url).hostname or "").removeprefix("www.").lower()
 
     def match(domain):
         return host == domain or host.endswith("." + domain)
@@ -69,6 +69,46 @@ def source_quality(source: Source) -> tuple[str, float]:
     if source.synthetic:
         return "unknown", 0.6
     return "unknown", 0.4
+
+
+def source_type(source: Source, state: CognitiveState) -> str:
+    host = (urlsplit(source.url).hostname or "").removeprefix("www.").lower()
+    if canonical_url(source.url) == canonical_url(state.rules_snapshot.get("source_url", "")):
+        return "primary_data"
+    if host == "openai.com" or host.endswith(".openai.com"):
+        return "official"
+    if any(host == x or host.endswith("." + x) for x in ("reuters.com", "bloomberg.com", "ft.com")):
+        return "established_reporting"
+    if any(host == x or host.endswith("." + x) for x in ("x.com", "twitter.com", "reddit.com")):
+        return "social"
+    return "other"
+
+
+def publisher_identity(source: Source) -> str:
+    host = (urlsplit(source.url).hostname or "").removeprefix("www.").lower()
+    parts = host.split(".")
+    if len(parts) <= 2:
+        return host
+    compound_suffixes = {"co.uk", "org.uk", "com.au", "co.jp"}
+    width = 3 if ".".join(parts[-2:]) in compound_suffixes else 2
+    return ".".join(parts[-width:])
+
+
+def retrieval_verified(source: Source, state: CognitiveState) -> bool:
+    host = (urlsplit(source.url).hostname or "").lower()
+    if source.source.lower() != host or source.content_hash != digest(source.content):
+        return False
+    if source.synthetic:
+        return state.mode == "demo"
+    if source.source_id != "src_" + digest(source.url + source.content)[:24]:
+        return False
+    traced = {
+        (sid, row.get("query"))
+        for row in state.search_history
+        if row.get("status") == "success"
+        for sid in row.get("source_ids", [])
+    }
+    return (source.source_id, source.query) in traced or source.source_id in state.archived_source_ids
 
 
 def process_evidence(
@@ -87,6 +127,11 @@ def process_evidence(
             result.append(ev)
             continue
         ev.synthetic = all(s.synthetic for s in refs)
+        ev.retrieval_verified = len(refs) == len(ev.source_ids) and all(
+            retrieval_verified(s, state) for s in refs
+        )
+        if not ev.retrieval_verified:
+            ev.exclusion_reasons.append("source provenance not verified in retrieval trace or archive")
         ev.supported = all(normalize(ev.supporting_quote) in normalize(s.content) for s in refs)
         if not ev.supported:
             ev.exclusion_reasons.append("supporting quote not found verbatim in referenced content")
@@ -96,6 +141,14 @@ def process_evidence(
         ev.published_at = max(dates) if len(dates) == len(refs) else None
         ev.retrieved_at = max(s.retrieved_at for s in refs)
         ev.source_kind, ev.credibility = max((source_quality(s) for s in refs), key=lambda x: x[1])
+        ev.source_type = source_type(max(refs, key=lambda s: source_quality(s)[1]), state)
+        ev.source_reliability = (
+            "high" if ev.credibility >= 0.8 else "medium" if ev.credibility >= 0.35 else "low"
+        )
+        ev.support_level = "unreviewed"
+        ev.first_hand = False
+        ev.corroboration_candidate_ids = []
+        ev.quality_score = 0
         # Model-generated claims are never upgraded automatically to verified facts.
         if ev.epistemic_status == "Verified Fact":
             ev.epistemic_status = "Reported Claim"

@@ -142,6 +142,36 @@ def test_real_mode_cannot_use_demo_anchor(tmp_path):
         select_anchor(store, DEMO_AS_OF, load_rules(), load_settings())
 
 
+def test_fork_review_creates_new_immutable_run_without_new_provider_calls(tmp_path):
+    store = Store(tmp_path / "fork.db")
+    controller = Controller(store, reports=tmp_path / "reports")
+    original = controller.run(controller.create_state("demo"))
+    fork = controller.fork_completed_review(original.run_id)
+    assert fork.run_id != original.run_id and fork.parent_run_id == original.run_id
+    assert fork.next_node == "UpdateBelief"
+    completed = controller.run(fork)
+    assert completed.status == "complete"
+    assert completed.usage == original.usage
+    assert completed.search_history == original.search_history
+    assert len(store.history("demo")) == 2
+    assert store.saved_state(original.run_id).forecast == original.forecast
+    assert original.run_id in completed.report
+
+
+def test_fork_reason_reruns_critique_without_repeating_search(tmp_path):
+    store = Store(tmp_path / "reason_fork.db")
+    controller = Controller(store, reports=tmp_path / "reports")
+    original = controller.run(controller.create_state("demo"))
+    fork = controller.fork_completed_reason(original.run_id)
+    assert fork.next_node == "Critique" and fork.run_id != original.run_id
+    calls_before = fork.usage.llm_calls
+    completed = controller.run(fork)
+    assert completed.status == "complete"
+    assert completed.usage.search_calls == original.usage.search_calls
+    assert completed.usage.llm_calls == calls_before + 1 == original.usage.llm_calls
+    assert completed.parent_run_id == original.run_id
+
+
 def test_failed_node_resume_does_not_repeat_search(tmp_path):
     class InterruptedLLM(DemoLLM):
         def generate(self, task, payload, schema):

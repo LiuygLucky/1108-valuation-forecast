@@ -218,5 +218,11 @@ class CompatibleLLM:
                     "LLM structured output truncated; increase max_output_tokens within budget"
                 )
             return schema.model_validate_json(choice["message"]["content"])
-        except (httpx.TransportError, KeyError, IndexError, ValueError, ValidationError) as exc:
+        except ValidationError as exc:
+            details = ", ".join(
+                f"{'.'.join(map(str, error['loc']))}:{error['type']}"
+                for error in exc.errors(include_input=False, include_url=False)[:6]
+            )
+            raise ProviderError(f"LLM structured validation failed ({details})") from None
+        except (httpx.TransportError, KeyError, IndexError, ValueError) as exc:
             raise ProviderError(f"LLM request/structured validation failed ({type(exc).__name__})") from None

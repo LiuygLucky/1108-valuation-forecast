@@ -124,6 +124,15 @@ class Evidence(Model):
     scenario_tags: list[str] = Field(default_factory=list)
     source_kind: Literal["official", "reporting", "analysis", "social", "unknown"] = "unknown"
     credibility: float = Field(default=0.3, ge=0, le=1)
+    source_type: Literal[
+        "primary_data", "official", "established_reporting", "other", "social", "unreviewed"
+    ] = "unreviewed"
+    source_reliability: Literal["high", "medium", "low", "unreviewed"] = "unreviewed"
+    support_level: Literal["direct", "partial", "background", "contradicts", "unreviewed"] = "unreviewed"
+    first_hand: bool = False
+    retrieval_verified: bool = False
+    corroboration_candidate_ids: list[str] = Field(default_factory=list)
+    quality_score: int = Field(default=0, ge=0, le=100)
     event_cluster: str = ""
     stale: bool = False
     exclusion_reasons: list[str] = Field(default_factory=list)
@@ -170,12 +179,23 @@ class Reasoning(Model):
     information_gaps: list[str]
 
 
+class EvidenceReview(Model):
+    evidence_id: str
+    support_level: Literal["direct", "partial", "background", "contradicts"] = Field(
+        description="How directly the quoted text entails this specific claim, not how directly it affects NPM valuation"
+    )
+    first_hand: bool
+    corroboration_candidate_ids: list[str] = Field(default_factory=list)
+    rationale: str
+
+
 class Critique(Model):
     accepted_evidence: list[str]
     disputed_evidence: list[str]
     missing_information: list[str]
     potential_biases: list[str]
     recommended_followup_queries: list[str] = Field(max_length=6)
+    evidence_reviews: list[EvidenceReview] = Field(default_factory=list)
 
 
 class NPMObservation(Model):
@@ -245,6 +265,7 @@ class Usage(Model):
 
 class CognitiveState(Model):
     run_id: str = Field(default_factory=lambda: uid("run"))
+    parent_run_id: str | None = None
     question: str
     mode: Mode
     as_of: AwareDatetime
@@ -252,6 +273,7 @@ class CognitiveState(Model):
     target_date: date
     research_plan: list[ResearchItem] = Field(default_factory=list)
     sources: list[Source] = Field(default_factory=list)
+    archived_source_ids: list[str] = Field(default_factory=list)
     evidence: list[Evidence] = Field(default_factory=list)
     evidence_ids: list[str] = Field(default_factory=list)
     retrieved_evidence_ids: list[str] = Field(default_factory=list)

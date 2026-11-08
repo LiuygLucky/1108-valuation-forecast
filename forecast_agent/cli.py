@@ -26,6 +26,12 @@ def parser():
     resume = sub.add_parser("resume", help="Resume original state, settings and rules")
     resume.add_argument("run_id")
     resume.add_argument("--mode", choices=["live", "historical", "demo"], required=True)
+    fork = sub.add_parser("fork-reviewed", help="New run ID from a completed review checkpoint")
+    fork.add_argument("parent_run_id")
+    fork.add_argument("--mode", choices=["live", "historical", "demo"], required=True)
+    fork_reason = sub.add_parser("fork-reason", help="New run ID from completed reasoning; rerun critique")
+    fork_reason.add_argument("parent_run_id")
+    fork_reason.add_argument("--mode", choices=["live", "historical", "demo"], required=True)
     imp = sub.add_parser(
         "import-npm", help="Import manually verified NPM metadata and screenshot/page archive"
     )
@@ -58,9 +64,10 @@ def main(argv=None):
     # Historical and live share a real evidence archive; demo is physically isolated.
     store = Store(args.data_dir / ("demo" if mode == "demo" else "live") / "forecast.sqlite3")
     try:
-        if args.command in {"run", "resume"}:
-            if args.command == "resume":
-                state = store.resume(args.run_id)
+        if args.command in {"run", "resume", "fork-reviewed", "fork-reason"}:
+            if args.command in {"resume", "fork-reviewed", "fork-reason"}:
+                parent_id = args.run_id if args.command == "resume" else args.parent_run_id
+                state = store.resume(parent_id)
                 if state.mode != mode:
                     raise ValueError("Resume mode does not match the original run")
                 controller = Controller(
@@ -70,6 +77,10 @@ def main(argv=None):
                     reports=args.reports_dir,
                     on_progress=print_progress,
                 )
+                if args.command == "fork-reviewed":
+                    state = controller.fork_completed_review(parent_id)
+                elif args.command == "fork-reason":
+                    state = controller.fork_completed_reason(parent_id)
             else:
                 if mode == "historical" and not args.as_of:
                     raise ValueError("Historical mode requires --as-of and archived sources")

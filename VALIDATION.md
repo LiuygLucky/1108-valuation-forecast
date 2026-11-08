@@ -1,5 +1,26 @@
 # V1 验收记录
 
+## 2026-11-08 预算与新参数的真实运行
+- 用户给定 `annual_log_drift=0.52`、`annual_volatility=0.22`。配置和预测快照一致；历史输入序列及估计方法未归档，故只验证配置生效与模型敏感性，不宣称历史估计经独立核验或完整概率校准。
+- 300,000 预留上限的 `run_ec01d36e0a974ec08fd81f0482aca70b` 完成第一轮，预留 148,939；第二轮预计需求 326,599，提前停止。
+- 400,000 上限的全新 `run_f0f7880d0a594fb7b21b16ff59181742` 完成两轮研究：6 次真实 Tavily、7 次真实 Qwen，最终预留 295,615/400,000，供应商 token 合计 102,168。70 来源、92 审计证据；第二轮新增 6 条，其中 4 条最终被审查接受。18 条最终逐条审查（13 direct、5 partial），1 项事件数值调整，六区间概率和 1.0，中位数约 1.4202 万亿美元；报告/JSON/SVG 已保存。
+- 同一数据和随机种子下的参数敏感性：0 / 0.45 → 0.52 / 0.22，中位数约 1.3106 → 1.4202 万亿美元，最高区间 +11.944 个百分点。结果在 `reports/parameter_sensitivity_run_ec01d36e0a974ec08fd81f0482aca70b.json`，标记为反事实参数对比，非新预测。
+- 自动检查：43 passed；Ruff 静态与格式检查通过。live 检索晚于 as_of，不是严格历史隔离回测；LLM 单价未知，美元成本估计不完整。
+
+## 2026-11-08 新版真实数据运行检查
+- **全新完整 live 运行** `run_0aa2f323cf034dddad02064953ae3a1c`：ParseQuestion→PlanResearch→3 次 Tavily Search→ProcessEvidence→RetrieveMemory→Reason→Qwen Critique→UpdateBelief→GenerateForecast→GenerateReport→SaveRun 全部成功；无父运行或人工恢复。53 个来源、75 条审计证据，18 条审查证据（15 direct、3 partial），1 项事件调整，六区间概率和 1.0，中位数约 1.4202 万亿美元。
+- 全新运行的报告、forecast.json、audit.json、probabilities.svg 已落盘，`reports/latest_live.json` 已更新；旧最新摘要另存档，历史预测文件未覆盖。
+- 最终代码检查：`.venv/Scripts/python.exe -m pytest -q` 为 **42 passed in 19.18s**；`ruff check .` 与 `ruff format --check .` 均通过。
+- `run_b6e66683226a49548c9c09deec4c332f` 状态 COMPLETE，来源运行 `run_9cef1ba049174b68ad3a1716dad1026e`。父运行真实调用 Qwen 和 Tavily，完成规划、三次搜索、抽取与 Reason；新运行在同一数据截止点重新真实调用 Qwen Critique，并完成数值与不可覆盖报告。
+- 51 个来源、68 条审计证据；18 条经逐条审查，15 条 direct、3 条 partial；来源轨迹不合格的旧记录未通过准入。1 项直接支持事件进入数值调整，概率和为 1.0，中位数约 1.3106 万亿美元。
+- 原始研究与最终预测分别有 checkpoint；最终报告、forecast.json、audit.json、probabilities.svg 位于 `reports/run_b6e66683226a49548c9c09deec4c332f/`。另有零事件调整的真实基准回退运行 `run_a686600ec2684c70a27b0e4558f8e3d1`。
+- 未宣称严格历史隔离回测或年底 NPM 结算。API 价格未知，美元费用估计不完整；失败联调和修复详见 `CHANGELOG.md`。
+
+## 2026-11-08 证据质量增强后的代码验证
+- 新增来源轨迹/内容 hash、支持程度、缺失审查、交叉来源候选和来源类型回归测试；全套 pytest **38 passed**，Ruff 检查与格式检查通过。
+- 使用合成演示运行验证新工作流。未重新执行真实 Tavily/LLM 预测；下方原始真实报告是增强前的历史成果，不代表新版机制真实验收。
+- 既有预测、报告和 checkpoint 未覆盖，详情见 `CHANGELOG.md`。
+
 验收日期：2026-11-08（Asia/Singapore）。源码、离线闭环与一次真实数据预测均已完成。
 
 ## 功能与测试
